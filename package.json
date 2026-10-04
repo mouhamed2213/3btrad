@@ -1,0 +1,54 @@
+{
+  "name": "btp-management-backend",
+  "version": "1.0.0",
+  "description": "API Backend Monolithe Modulaire pour Gestion BTP",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch  src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "test": "test"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "bcrypt": "^5.1.1",
+    "bullmq": "^5.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1",
+    "ioredis": "^5.4.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.12.1",
+    "morgane": "^1.0.1",
+    "pg": "^8.23.1",
+    "winston": "^3.19.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^26.6.4",
+    "nodemon": "^3.1.14",
+    "prisma": "^7.10.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.0",
+    "typescript": "^7.0.2"
+  },
+  "paths": {
+    "@models/*": [
+      "models/*"
+    ],
+    "@controllers/*": [
+      "controllers/*"
+    ]
+  }
+}

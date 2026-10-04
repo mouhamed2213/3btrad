@@ -1,0 +1,369 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/database/prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ENUMS (Types Énumérés Métier)
+// ==========================================
+
+enum UserRole {
+  ADMIN
+  AGENT_COMMERCIAL
+  GESTIONNAIRE_FLOTTE
+  CHEF_ATELIER
+  CAISSIER
+}
+
+enum ClientType {
+  STANDARD // Prépaiement 100% requis avant sortie d'engin ou livraison
+  PARTNER  // Entreprise partenaire (facturation mensuelle / encours autorisé)
+}
+
+enum MachineryCategory {
+  CAMION_BENNE
+  CAMION_PLATEAU
+  PELLE_HYDRAULIQUE
+  CHARGEUR_TRACTOPELLE
+  BULLDOZER
+  MINI_PELLE
+  COMPACTEUR
+  AUTRE
+}
+
+enum MachineryStatus {
+  AVAILABLE      // Disponible au dépôt
+  RENTED         // En cours de location
+  ON_WORKSITE    // Affecté à un chantier de terrassement propre
+  IN_MAINTENANCE // En atelier de réparation / entretien
+  SOLD           // Vendu
+}
+
+enum PricingModel {
+  FLAT_FEE    // Au forfait global
+  CUBIC_METER // Au cubage (m3)
+  HOURLY      // Au compteur horaire
+  DAILY       // À la journée
+  ROTATION    // Par rotation (camions)
+}
+
+enum InvoiceType {
+  PROFORMA    // Devis / Facture proforma
+  DEPOSIT     // Facture d'acompte
+  FINAL       // Facture définitive
+  CREDIT_NOTE // Avoir / Note de crédit
+}
+
+enum InvoiceStatus {
+  DRAFT          // Brouillon
+  PENDING        // En attente de règlement
+  PARTIALLY_PAID // En partie réglée
+  PAID           // Entièrement réglée
+  OVERDUE        // En retard de paiement
+  CANCELLED      // Annulée
+}
+
+enum PaymentMethod {
+  CASH         // Espèces
+  WAVE         // Mobile Money Wave
+  ORANGE_MONEY // Mobile Money Orange Money
+  BANK_TRANSFER // Virement bancaire
+}
+
+enum RepairStatus {
+  PENDING     // En attente
+  IN_PROGRESS // En cours
+  COMPLETED   // Terminée
+  CANCELLED   // Annulée
+}
+
+// ==========================================
+// MODULE CORE : UTILISATEURS & CLIENTS
+// ==========================================
+
+model User {
+  id        String   @id @default(uuid())
+  firstName String
+  lastName  String
+  email     String   @unique
+  phone     String   @unique
+  password  String   // Hashé avec bcrypt / argon2
+  role      UserRole @default(AGENT_COMMERCIAL)
+  isActive  Boolean  @default(true)
+
+  // Relations de traçabilité
+  recordedPayments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Client {
+  id          String     @id @default(uuid())
+  name        String     // Nom complet ou Raison Sociale
+  phone       String     @unique
+  email       String?
+  address     String?
+  type        ClientType @default(STANDARD)
+  creditLimit Float      @default(0.0) // Plafond d'encours pour les clients PARTNER
+
+  // Relations
+  worksites    Worksite[]
+  rentals      Rental[]
+  invoices     Invoice[]
+  repairOrders RepairOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("clients")
+}
+
+// ==========================================
+// MODULE CORE & FLOTTE : ENGINS & CAMIONS
+// ==========================================
+
+model Machinery {
+  id             String            @id @default(uuid())
+  code           String            @unique // Ex: CAT-320-01, MACK-02
+  name           String            // Ex: Caterpillar 320D
+  brand          String            // Ex: Caterpillar, Komatsu, Mack
+  model          String            // Ex: 320D, D6N
+  category       MachineryCategory
+  year           Int?
+  operatingHours Float             @default(0.0) // Relevé du compteur horaire
+  status         MachineryStatus   @default(AVAILABLE)
+
+  // Tarifs par défaut
+  hourlyRate   Float?
+  dailyRate    Float?
+  rotationRate Float?
+
+  // Vente (si la machine est destinée à la revente)
+  isForSale  Boolean @default(false)
+  salePrice  Float?
+  saleDetails String?
+
+  // Relations
+  rentals         Rental[]
+  maintenanceLogs MaintenanceLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("machineries")
+}
+
+// ==========================================
+// MODULE 1 : TERRASEMENT & CHANTIERS
+// ==========================================
+
+model Worksite {
+  id              String       @id @default(uuid())
+  code            String       @unique // Ex: CH-2026-001
+  clientId        String
+  client          Client       @relation(fields: [clientId], references: [id])
+  location        String       // Emplacement / Ville du chantier
+  serviceType     String       // Ex: Fouille profonde, Enrochement, Assainissement
+  pricingModel    PricingModel
+  estimatedVolume Float?       // Volume estimé en m3 (si applicable)
+  estimatedAmount Float        // Montant total estimé du chantier
+  startDate       DateTime?
+  endDate         DateTime?
+
+  // Lien avec la facturation
+  invoiceId String?  @unique
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("worksites")
+}
+
+// ==========================================
+// MODULE 2 : LOCATION D'ENGINS
+// ==========================================
+
+model Rental {
+  id          String    @id @default(uuid())
+  code        String    @unique // Ex: LOC-2026-001
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id])
+  machineryId String
+  machinery   Machinery @relation(fields: [machineryId], references: [id])
+
+  startDate DateTime
+  endDate   DateTime
+  durationDays Int
+
+  // Condition Clés en Main (Inclus par défaut)
+  isDriverIncluded Boolean @default(true)
+  isFuelIncluded   Boolean @default(true)
+
+  pricingModel PricingModel @default(DAILY)
+  unitPrice    Float        // Tarif journalier ou par rotation appliqué
+  totalAmount  Float
+
+  // Règle d'autorisation de sortie du dépôt
+  isApprovedForDeparture Boolean @default(false)
+
+  // Lien avec la facturation
+  invoiceId String?  @unique
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("rentals")
+}
+
+// ==========================================
+// MODULE 3 : VENTE & CATALOGUE PIÈCES
+// ==========================================
+
+model Part {
+  id               String   @id @default(uuid())
+  oemReference     String   @unique // Référence OEM exacte
+  name             String
+  brand            String   // Marque de la pièce
+  family           String   // Ex: Moteur, Hydraulique, Filtration, Électricité
+  compatibleModels String[] // Modèles d'engins compatibles (ex: ["CAT 320D", "Komatsu PC200"])
+  stockQuantity    Int      @default(0)
+  unitPrice        Float
+
+  // Interventions d'atelier utilisant cette pièce
+  usedInMaintenances PartOnMaintenance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([oemReference])
+  @@index([family])
+  @@map("parts")
+}
+
+// ==========================================
+// MODULE 4 : ATELIER & MAINTENANCE
+// ==========================================
+
+model MaintenanceLog {
+  id          String    @id @default(uuid())
+  machineryId String
+  machinery   Machinery @relation(fields: [machineryId], references: [id])
+  description String
+  laborCost   Float     @default(0.0) // Coût de la main-d'œuvre
+  partsCost   Float     @default(0.0) // Coût cumulé des pièces
+  totalCost   Float
+  performedAt DateTime  @default(now())
+
+  // Pièces de rechange utilisées
+  partsUsed PartOnMaintenance[]
+
+  @@map("maintenance_logs")
+}
+
+// Table pivot : Pièces utilisées lors d'une maintenance
+model PartOnMaintenance {
+  maintenanceId String
+  maintenance   MaintenanceLog @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+  partId        String
+  part          Part           @relation(fields: [partId], references: [id])
+  quantity      Int
+  unitPrice     Float
+
+  @@id([maintenanceId, partId])
+  @@map("parts_on_maintenances")
+}
+
+// Prestation de réparation pour un client externe (Facturée)
+model RepairOrder {
+  id          String       @id @default(uuid())
+  code        String       @unique // Ex: REP-2026-001
+  clientId    String
+  client      Client       @relation(fields: [clientId], references: [id])
+  description String
+  status      RepairStatus @default(PENDING)
+  totalAmount Float
+
+  invoiceId String?  @unique
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("repair_orders")
+}
+
+// ==========================================
+// MODULE 5 : FACTURATION & RECOUVREMENT
+// ==========================================
+
+model Invoice {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique // Ex: FAC-2026-0001
+  clientId      String
+  client        Client        @relation(fields: [clientId], references: [id])
+  type          InvoiceType   @default(FINAL)
+  status        InvoiceStatus @default(PENDING)
+
+  subtotal    Float
+  taxAmount   Float @default(0.0)
+  totalAmount Float
+  paidAmount  Float @default(0.0) // Cumulativement réglé
+
+  dueDate DateTime // Date d'échéance de règlement
+
+  // Lignes de facture détaillées
+  items InvoiceItem[]
+
+  // Historique des encaissements
+  payments Payment[]
+
+  // Relations inverses avec les services d'origine
+  worksite    Worksite?
+  rental      Rental?
+  repairOrder RepairOrder?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([invoiceNumber])
+  @@index([status])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String   // Libellé de la ligne
+  quantity    Float    // Nombre de jours, rotations, m3 ou quantité de pièces
+  unitPrice   Float
+  totalPrice  Float
+
+  @@map("invoice_items")
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  receiptNumber  String        @unique // Ex: REC-2026-0001
+  invoiceId      String
+  invoice        Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount         Float
+  method         PaymentMethod
+  transactionRef String?       // Numéro de transaction Wave, Orange Money ou référence virement
+
+  // Agent ou Caissier qui a enregistré le paiement
+  recordedById String
+  recordedBy   User   @relation(fields: [recordedById], references: [id])
+
+  recordedAt DateTime @default(now())
+
+  @@map("payments")
+}
