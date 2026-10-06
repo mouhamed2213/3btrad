@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { type NextFunction, type Request, type Response } from "express";
 import { ZodError } from "zod";
 import { AppError } from "../common/app-error.js";

@@ -6,6 +6,7 @@ import express, {
   type Response,
 } from "express";
 import morgan from "morgan";
+import authRouter from "./auth/auth.route.js";
 import { logger } from "./config/logger.js";
 
 const app: Express = express();
@@ -30,9 +31,12 @@ app.get("/health", (_req: Request, res: Response) => {
   res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
+// routes
+app.use("/api/auth", authRouter);
+
 // Middleware Global de Gestion d'Erreur (Fallback)
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("Unhandled Error:", err);
+  logger.error("Unhandled Error:", err);
   res.status(500).json({
     error: "InternalServerError",
     message: err.message || "Une erreur interne est survenue",
