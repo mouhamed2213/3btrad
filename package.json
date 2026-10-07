@@ -25,6 +25,7 @@
     "dotenv": "^18.0.5",
     "express": "^5.2.1",
     "ioredis": "^5.4.0",
+    "jose": "^6.2.12",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.12.1",
     "morgane": "^1.0.1",

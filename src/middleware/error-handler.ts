@@ -1,8 +1,8 @@
 import { type NextFunction, type Request, type Response } from "express";
 import { ZodError } from "zod";
-import { AppError } from "../common/app-error.js";
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
+import { AppError } from "../lib/app-error.js";
 
 export const errorHandler = (
   err: Error,
@@ -29,19 +29,19 @@ export const errorHandler = (
     }));
   }
   // 3. Gestion des erreurs Prisma (Base de données)
-//   else if (err instanceof Prisma.PrismaClientKnownRequestError) {
-//     if (err.code === "P2002") {
-//       statusCode = 409;
-//       message =
-//         "Une contrainte d'unicité a été violée (enregistrement déjà existant)";
-//     } else if (err.code === "P2025") {
-//       statusCode = 404;
-//       message = "L'enregistrement cible n'a pas été trouvé";
-//     } else {
-//       statusCode = 400;
-//       message = `Erreur de base de données (Code: ${err.code})`;
-//     }
-//   }
+  //   else if (err instanceof Prisma.PrismaClientKnownRequestError) {
+  //     if (err.code === "P2002") {
+  //       statusCode = 409;
+  //       message =
+  //         "Une contrainte d'unicité a été violée (enregistrement déjà existant)";
+  //     } else if (err.code === "P2025") {
+  //       statusCode = 404;
+  //       message = "L'enregistrement cible n'a pas été trouvé";
+  //     } else {
+  //       statusCode = 400;
+  //       message = `Erreur de base de données (Code: ${err.code})`;
+  //     }
+  //   }
 
   // Log de l'erreur via Winston
   if (statusCode >= 500) {
