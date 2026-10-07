@@ -1,5 +1,5 @@
-import { logger } from "../config/logger.js";
-import { Prisma } from "../database/prisma/generate/prisma/client.js";
+import { logger } from "../../config/logger.js";
+import { Prisma } from "../../database/prisma/generate/prisma/client.js";
 
 export const AuthService = {
   async registerUser(user: Prisma.UserCreateInput) {
@@ -15,5 +15,5 @@ export const AuthService = {
       return null;
     }
     return user;
-  }
+  },
 };

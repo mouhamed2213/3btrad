@@ -1,8 +1,8 @@
 import bcrypt from "bcrypt";
 import type { NextFunction, Request, Response } from "express";
-import { logger } from "../config/logger.js";
-import { BadRequestError } from "../lib/app-error.js";
-import { generateToken } from "../lib/jwt.js";
+import { logger } from "../../config/logger.js";
+import { BadRequestError } from "../../lib/app-error.js";
+import { generateToken } from "../../lib/jwt.js";
 import { AuthService } from "./auth.service.js";
 
 export const AuthContrloller = {

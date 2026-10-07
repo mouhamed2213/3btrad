@@ -6,8 +6,8 @@ import express, {
   type Response,
 } from "express";
 import morgan from "morgan";
-import authRouter from "./auth/auth.route.js";
 import { logger } from "./config/logger.js";
+import authRouter from "./module/auth/auth.route.js";
 
 const app: Express = express();
 
