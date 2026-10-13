@@ -7,7 +7,7 @@ import express, {
 } from "express";
 import morgan from "morgan";
 import { logger } from "./config/logger.js";
-import authRouter from "./module/auth/auth.route.js";
+import apiRouter from "./routes.js";
 
 const app: Express = express();
 
@@ -32,7 +32,7 @@ app.get("/health", (_req: Request, res: Response) => {
 });
 
 // routes
-app.use("/api/auth", authRouter);
+app.use("/api", apiRouter);
 
 // Middleware Global de Gestion d'Erreur (Fallback)
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
